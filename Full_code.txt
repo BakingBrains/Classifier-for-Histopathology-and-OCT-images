@@ -1,0 +1,83 @@
+import numpy as np
+import os
+import zipfile
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+print(len(os.listdir("C:/Users/adeat/Desktop/Project/Class/Tensorflow/Hist_OCT/Train/Hist")))
+print(len(os.listdir("C:/Users/adeat/Desktop/Project/Class/Tensorflow/Hist_OCT/Train/oct")))
+print(len(os.listdir("C:/Users/adeat/Desktop/Project/Class/Tensorflow/Hist_OCT/validate/Hist")))
+print(len(os.listdir("C:/Users/adeat/Desktop/Project/Class/Tensorflow/Hist_OCT/validate/OCT")))
+
+model = tf.keras.models.Sequential([
+            tf.keras.layers.Conv2D(32, (3,3), activation ='relu', input_shape=(150,150,3)),
+            tf.keras.layers.MaxPooling2D(2,2),
+            #tf.keras.layers.Conv2D(32, (3,3), activation ='relu'),
+            #tf.keras.layers.MaxPooling2D(2,2),
+            tf.keras.layers.Conv2D(64, (3,3), activation ='relu'),
+            tf.keras.layers.MaxPooling2D(2,2),
+            tf.keras.layers.Conv2D(64, (3,3), activation ='relu'),
+            tf.keras.layers.MaxPooling2D(2,2),
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(512, activation = tf.nn.relu),
+            tf.keras.layers.Dense(1, activation= 'sigmoid')
+])
+
+model.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
+
+model.summary()
+
+train_datagen = ImageDataGenerator(rescale=1/255.0)
+validation_datagen = ImageDataGenerator(rescale=1/255.0)
+
+training_generator = train_datagen.flow_from_directory(
+                    "C:/Users/adeat/Desktop/Project/Class/Tensorflow/Hist_OCT/Train",
+                    target_size = (150, 150),
+                    batch_size = 100,
+                    class_mode = 'binary')
+
+validation_generator = validation_datagen.flow_from_directory(
+                    "C:/Users/adeat/Desktop/Project/Class/Tensorflow/Hist_OCT/validate",
+                    target_size = (150, 150),
+                    batch_size = 50,
+                    class_mode = 'binary')
+
+model.fit_generator(
+        training_generator,
+        steps_per_epoch = 10,
+        epochs = 5,
+        validation_data = validation_generator,
+        validation_steps = 10,
+        verbose = 2)
+
+model.evaluate(validation_generator)
+
+from os import listdir
+from os.path import isfile, join
+predict_dir_path='C:/Users/adeat/Desktop/Project/Class/Tensorflow/Hist_OCT/validate/test/'
+onlyfiles = [f for f in listdir(predict_dir_path) if isfile(join(predict_dir_path, f))]
+print(onlyfiles)
+
+
+# predicting images
+from keras.preprocessing import image
+OCT_counter = 0 
+Hist_counter  = 0
+for file in onlyfiles:
+    img = image.load_img(predict_dir_path+file, target_size=(150, 150))
+    x = image.img_to_array(img)
+    x = np.expand_dims(x, axis=0)
+    
+    images = np.vstack([x])
+    classes = model.predict_classes(images, batch_size=10)
+    classes = classes[0][0]
+    
+    if classes == 0:
+        print(file + ": " + 'Histopathology')
+        Hist_counter += 1
+    else:
+        print(file + ": " + 'OCT')
+        OCT_counter += 1
+print("Total OCT  :",OCT_counter)
+print("Total histopathology :",Hist_counter)
